@@ -4,7 +4,7 @@
 [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
 [![Total Downloads](https://img.shields.io/packagist/dt/bbs-lab/laravel-salesforce-email-transport.svg?style=flat-square)](https://packagist.org/packages/bbs-lab/laravel-salesforce-email-transport)
 
-A [Salesforce transactionnal Email](https://ui.toast.com/tui-editor) transport for Laravel.
+A [Salesforce transactionnal Email](https://developer.salesforce.com/docs/marketing/marketing-cloud/guide/sendMessageSingleRecipient.html) transport for Laravel.
 
 ## Contents
 
