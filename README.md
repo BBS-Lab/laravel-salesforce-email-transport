@@ -10,6 +10,7 @@ A [Salesforce transactionnal Email](https://developer.salesforce.com/docs/market
 
 - [Installation](#installation)
 - [Usage](#usage)
+- [Advanced usage](#advanced-usage)
 - [Changelog](#changelog)
 - [Security](#security)
 - [Contributing](#contributing)
@@ -75,6 +76,30 @@ return [
         // ...
         
         'salesforce' => [
+            'transport' => 'salesforce',
+        ],    
+    ],
+]
+```
+
+## Advanced usage
+
+You can use multiples transports. The rule is the mailer name of the transport starts with `salesforce`
+
+```php
+<?php
+
+return [
+    // ...
+    
+    'mailers' => [
+        // ...
+        
+        'salesforce_1' => [
+            'transport' => 'salesforce',
+        ],
+        
+        'salesforce_2' => [
             'transport' => 'salesforce',
         ],    
     ],

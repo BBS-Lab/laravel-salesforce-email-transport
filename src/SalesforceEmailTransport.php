@@ -9,6 +9,8 @@ use Closure;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Psr\EventDispatcher\EventDispatcherInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mailer\Transport\AbstractTransport;
 use Symfony\Component\Mime\Email;
@@ -16,11 +18,17 @@ use Symfony\Component\Mime\MessageConverter;
 
 class SalesforceEmailTransport extends AbstractTransport
 {
-    public static Closure|null $contactKeyCallback = null;
+    /** @var array<string,Closure> $contactKeyCallback */
+    public static array $contactKeyCallback = [];
 
-    public static function withContactKeyCallback(Closure $closure): void
+    public static function withContactKeyCallback(string $name, Closure $closure): void
     {
-        static::$contactKeyCallback = $closure;
+        static::$contactKeyCallback[$name] = $closure;
+    }
+
+    public function __construct(public string $name, public array $config = [], EventDispatcherInterface $dispatcher = null, LoggerInterface $logger = null)
+    {
+        parent::__construct($dispatcher, $logger);
     }
 
     /**
@@ -33,7 +41,7 @@ class SalesforceEmailTransport extends AbstractTransport
         $recipient = collect($email->getTo())->first();
 
         $payload = [
-            'definitionKey' => config('salesforce-email-transport.api.definition_key'),
+            'definitionKey' => $this->config('api.definition_key'),
             'recipient' => [
                 'contactKey' => $this->contactKey($email),
                 'to' => $recipient?->getAddress(),
@@ -51,7 +59,7 @@ class SalesforceEmailTransport extends AbstractTransport
         Http::asJson()
             ->throw()
             ->withToken($token)
-            ->post(config('salesforce-email-transport.api.url') . '/' . Str::uuid(), $payload);
+            ->post($this->config('api.url') . '/' . Str::uuid(), $payload);
     }
 
     public function __toString(): string
@@ -64,19 +72,19 @@ class SalesforceEmailTransport extends AbstractTransport
         $callback = function() {
             return Http::asForm()
                 ->throw()
-                ->post(config('salesforce-email-transport.auth.url'), [
-                    'client_id' => config('salesforce-email-transport.auth.client_id'),
-                    'client_secret' => config('salesforce-email-transport.auth.client_secret'),
-                    'grant_type' => config('salesforce-email-transport.auth.grant_type'),
-                    'resource' => config('salesforce-email-transport.auth.resource'),
+                ->post($this->config('auth.url'), [
+                    'client_id' => $this->config('auth.client_id'),
+                    'client_secret' => $this->config('auth.client_secret'),
+                    'grant_type' => $this->config('auth.grant_type'),
+                    'resource' => $this->config('auth.resource'),
                 ]);
         };
 
-        if(!config('salesforce-email-transport.auth.cache.enabled')) {
+        if(!$this->config('auth.cache.enabled')) {
             return $callback()->json('access_token');
         }
 
-        $key = config('salesforce-email-transport.auth.cache.key');
+        $key = $this->config('auth.cache.key');
 
         if(Cache::has($key)) {
             return Cache::get($key);
@@ -95,10 +103,15 @@ class SalesforceEmailTransport extends AbstractTransport
 
     protected function contactKey(Email $email): ?string
     {
-        if(is_callable(static::$contactKeyCallback)) {
-            return call_user_func(static::$contactKeyCallback, $email);
+        if(is_callable(static::$contactKeyCallback[$this->name] ?? null)) {
+            return call_user_func(static::$contactKeyCallback[$this->name], $email);
         }
 
         return collect($email->getTo())->first()?->getAddress();
+    }
+
+    protected function config(string $key)
+    {
+        return data_get($this->config, $key, config("salesforce-email-transport.{$key}"));
     }
 }
